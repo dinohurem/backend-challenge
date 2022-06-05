@@ -20,6 +20,7 @@
     "QuizService": {
       "commandName": "Project",
       "launchBrowser": true,
+      // TODO: Value of launchUrl would be quizzes endpoint with swagger set up.
       "launchUrl": "api/values",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

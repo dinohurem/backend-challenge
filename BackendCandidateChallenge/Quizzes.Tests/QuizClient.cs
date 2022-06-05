@@ -13,6 +13,8 @@ using Quizzes.Domain.Dtos;
 
 namespace Quizzes.Domain;
 
+// TODO: This is called when the DBContext is initialized.
+
 public class QuizClient
 {
     private readonly Uri _quizServiceUri;

@@ -11,7 +11,7 @@ public class Program
     }
 
     // TODO: Add swagger.
-    // TODO: Use minimalist api since this is .net6.
+    // TODO: Consider using minimalist api since this is .net6.
     public static IWebHost BuildWebHost(string[] args) =>
         WebHost.CreateDefaultBuilder(args)
             .UseStartup<Startup>()

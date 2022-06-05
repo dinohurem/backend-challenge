@@ -302,132 +302,131 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
         _mockProviderService.VerifyInteractions();
     }
 
-    [Fact]
-    public async Task PostQuiz_TakeQuiz_VerifyCorrectAnswersScore()
-    {
-        _mockProviderService.ClearInteractions();
-        int quizId = 99999;
+    //[Fact]
+    //public async Task PostQuiz_TakeQuiz_VerifyCorrectAnswersScore()
+    ////{
+    //    _mockProviderService.ClearInteractions();
+    //    int quizId = 99999;
 
-        // Create quizz.
-        _mockProviderService
-            .Given("There are some quizzes")
-            .UponReceiving($"A POST quiz request for {quizId}")
-            .With(new ProviderServiceRequest
-            {
-                Method = HttpVerb.Post,
-                Path = "/api/quizzes",
-                Headers = new Dictionary<string, object>
-                {
-                    { "Content-Type", "application/json" }
-                }
-            })
-            .WillRespondWith(new ProviderServiceResponse
-            {
-                Status = 201,
-                Headers = new Dictionary<string, object>
-                {
-                    { "Content-Type", "application/json" },
-                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}", "quizzes\\/[0-9]*") }
-                }
-            });
+    //    // Create quizz.
+    //    _mockProviderService
+    //        .Given($"There is no quiz with id {quizId}")
+    //        .UponReceiving($"A POST quiz request for {quizId}")
+    //        .With(new ProviderServiceRequest
+    //        {
+    //            Method = HttpVerb.Post,
+    //            Path = "/api/quizzes",
+    //            Headers = new Dictionary<string, object>
+    //            {
+    //                { "Content-Type", "application/json" }
+    //            }
+    //        })
+    //        .WillRespondWith(new ProviderServiceResponse
+    //        {
+    //            Status = 201,
+    //            Headers = new Dictionary<string, object>
+    //            {
+    //                { "Content-Type", "application/json" },
+    //                { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}", "quizzes\\/[0-9]*") }
+    //            }
+    //        });
 
-        var consumer = new QuizClient(_mockProviderServiceBaseUri, Client);
+    //    var consumer = new QuizClient(_mockProviderServiceBaseUri, Client);
 
-        var result = await consumer.PostQuizAsync(new Quiz { Id = quizId, Title = $"This is quiz {quizId}" }, CancellationToken.None);
-        Assert.True(string.IsNullOrEmpty(result.ErrorMessage), result.ErrorMessage);
-        Assert.Equal(HttpStatusCode.Created, result.StatusCode);
-        Assert.NotNull(result.Value);
+    //    var result = await consumer.PostQuizAsync(new Quiz { Id = quizId, Title = $"This is quiz {quizId}" }, CancellationToken.None);
+    //    Assert.True(string.IsNullOrEmpty(result.ErrorMessage), result.ErrorMessage);
+    //    Assert.Equal(HttpStatusCode.Created, result.StatusCode);
+    //    Assert.NotNull(result.Value);
 
-        // Create 2 questions.
-        for (int i = 1; i < 2; i++)
-        {
-            _mockProviderService
-            .Given("There are some quizzes")
-            .UponReceiving($"A POST request to quiz {quizId} questions collection")
-            .With(new ProviderServiceRequest
-            {
-                Method = HttpVerb.Post,
-                Path = $"/api/quizzes/{quizId}/questions",
-                Headers = new Dictionary<string, object>
-                {
-                    { "Content-Type", "application/json" }
-                }
-            })
-            .WillRespondWith(new ProviderServiceResponse
-            {
-                Status = 201,
-                Headers = new Dictionary<string, object>
-                {
-                    { "Content-Type", "application/json" },
-                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/1", $"quizzes\\/{quizId}\\/questions\\/[0-9]*") }
-                }
-            });
+    //    // Create 2 questions.
+    //    for (int i = 1; i < 3; i++)
+    //    {
+    //        _mockProviderService
+    //        .Given($"There is no question with id {i}")
+    //        .UponReceiving($"A POST question request with id {i}")
+    //        .With(new ProviderServiceRequest
+    //        {
+    //            Method = HttpVerb.Post,
+    //            Path = $"/api/quizzes/{quizId}/questions",
+    //            Headers = new Dictionary<string, object>
+    //            {
+    //                { "Content-Type", "application/json" }
+    //            }
+    //        })
+    //        .WillRespondWith(new ProviderServiceResponse
+    //        {
+    //            Status = 201,
+    //            Headers = new Dictionary<string, object>
+    //            {
+    //                { "Content-Type", "application/json" },
+    //                { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/{i}", $"quizzes\\/{quizId}\\/questions\\/[0-9]*") }
+    //            }
+    //        });
 
-            var resultQuestions = await consumer.PostQuestionAsync(quizId, new QuizQuestion { Text = $"This is a question no.{i}" }, CancellationToken.None);
-            Assert.True(string.IsNullOrEmpty(resultQuestions.ErrorMessage), resultQuestions.ErrorMessage);
-            Assert.Equal(HttpStatusCode.Created, resultQuestions.StatusCode);
-            Assert.NotNull(resultQuestions.Value);
-
-
-            // Update of correctAnswerId for each question.
-            _mockProviderService
-           .Given("There is a question with id")
-           .UponReceiving($"A PUT request to quiz {quizId} questions collection")
-           .With(new ProviderServiceRequest
-           {
-               Method = HttpVerb.Put,
-               Path = $"/api/quizzes/{quizId}/questions/{i}",
-               Headers = new Dictionary<string, object>
-               {
-                    { "Content-Type", "application/json" }
-               }
-           })
-           .WillRespondWith(new ProviderServiceResponse
-           {
-               Status = 201,
-               Headers = new Dictionary<string, object>
-               {
-                    { "Content-Type", "application/json" },
-                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/{i}", $"quizzes\\/{quizId}\\/questions\\/[0-9]*") }
-               }
-           });
-
-            var resultQuestionUpdated = await consumer.PutQuestionAsync(quizId, i, new QuestionUpdateModel { CorrectAnswerId = i == 1 ? 1 : 3 }, CancellationToken.None);
-            Assert.True(string.IsNullOrEmpty(resultQuestionUpdated.ErrorMessage), resultQuestionUpdated.ErrorMessage);
-            Assert.Equal(HttpStatusCode.Created, resultQuestionUpdated.StatusCode);
-
-            // Create 2 answers for each question.
+    //        var resultQuestions = await consumer.PostQuestionAsync(quizId, new QuizQuestion { Text = $"This is a question no.{i}" }, CancellationToken.None);
+    //        Assert.True(string.IsNullOrEmpty(resultQuestions.ErrorMessage), resultQuestions.ErrorMessage);
+    //        Assert.Equal(HttpStatusCode.Created, resultQuestions.StatusCode);
+    //        Assert.NotNull(resultQuestions.Value);
 
 
-            _mockProviderService
-        .Given($"There is a question with id {i} and we have the first answer")
-        .UponReceiving($"A POST request for the question")
-        .With(new ProviderServiceRequest
-        {
-            Method = HttpVerb.Post,
-            Path = $"/api/quizzes/{quizId}/questions/{i}/answers",
-            Headers = new Dictionary<string, object>
-            {
-                    { "Content-Type", "application/json" }
-            }
-        })
-        .WillRespondWith(new ProviderServiceResponse
-        {
-            Status = 201,
-            Headers = new Dictionary<string, object>
-            {
-                    { "Content-Type", "application/json" },
-                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/{i}/answers", $"quizzes\\/{quizId}\\/questions\\/{i}\\/answers") }
-            }
-        });
+    //        // Update correctAnswerId for each question.
+    //        _mockProviderService
+    //       .Given($"There is no set correctAnswerId for question with id {i}")
+    //       .UponReceiving($"A PUT request to quiz {quizId} questions collection for question id {i}")
+    //       .With(new ProviderServiceRequest
+    //       {
+    //           Method = HttpVerb.Put,
+    //           Path = $"/api/quizzes/{quizId}/questions/{i}",
+    //           Headers = new Dictionary<string, object>
+    //           {
+    //                { "Content-Type", "application/json" }
+    //           }
+    //       })
+    //       .WillRespondWith(new ProviderServiceResponse
+    //       {
+    //           Status = 201,
+    //           Headers = new Dictionary<string, object>
+    //           {
+    //                { "Content-Type", "application/json" },
+    //                { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/{i}", $"quizzes\\/{quizId}\\/questions\\/[0-9]*") }
+    //           }
+    //       });
 
-            var resultAnswerFirst = await consumer.PostAnswerAsync(quizId, i, new Answer { Text = $"This is the first answer for question {i}", QuestionId = i }, CancellationToken.None);
-            Assert.True(string.IsNullOrEmpty(resultAnswerFirst.ErrorMessage), resultAnswerFirst.ErrorMessage);
-            Assert.Equal(HttpStatusCode.Created, resultAnswerFirst.StatusCode);
-            Assert.NotNull(resultAnswerFirst.Value);            
-        }
-    
+    //        var resultQuestionUpdated = await consumer.PutQuestionAsync(quizId, i, new QuestionUpdateModel { CorrectAnswerId = i == 1 ? 1 : 3 }, CancellationToken.None);
+    //        Assert.True(string.IsNullOrEmpty(resultQuestionUpdated.ErrorMessage), resultQuestionUpdated.ErrorMessage);
+    //        Assert.Equal(HttpStatusCode.Created, resultQuestionUpdated.StatusCode);
 
-    _mockProviderService.VerifyInteractions();
-    }
+
+    //        // Create 2 answers for each question.
+    //        _mockProviderService
+    //        .Given($"There is a question with id {i} and we have the first answer")
+    //        .UponReceiving($"A POST request for the question")
+    //        .With(new ProviderServiceRequest
+    //        {
+    //            Method = HttpVerb.Post,
+    //            Path = $"/api/quizzes/{quizId}/questions/{i}/answers",
+    //            Headers = new Dictionary<string, object>
+    //            {
+    //                { "Content-Type", "application/json" }
+    //            }
+    //        })
+    //        .WillRespondWith(new ProviderServiceResponse
+    //        {
+    //            Status = 201,
+    //            Headers = new Dictionary<string, object>
+    //            {
+    //                { "Content-Type", "application/json" },
+    //                { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/{i}/answers", $"quizzes\\/{quizId}\\/questions\\/{i}\\/answers") }
+    //            }
+    //        });
+
+    //        var resultAnswerFirst = await consumer.PostAnswerAsync(quizId, i, new Answer { Text = $"This is the first answer for question {i}", QuestionId = i }, CancellationToken.None);
+    //        Assert.True(string.IsNullOrEmpty(resultAnswerFirst.ErrorMessage), resultAnswerFirst.ErrorMessage);
+    //        Assert.Equal(HttpStatusCode.Created, resultAnswerFirst.StatusCode);
+    //        Assert.NotNull(resultAnswerFirst.Value);
+    //    }
+
+
+    //    _mockProviderService.VerifyInteractions();
+    //}
 }
