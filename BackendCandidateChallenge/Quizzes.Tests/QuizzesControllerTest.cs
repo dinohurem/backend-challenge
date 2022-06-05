@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Newtonsoft.Json;
-using QuizService.Model;
+using Quizzes.API;
+using Quizzes.Domain.Dtos;
 using Xunit;
 
 namespace Quizzes.Tests;
@@ -58,6 +59,8 @@ public class QuizzesControllerTest
             var client = testHost.CreateClient();
             const long quizId = 999;
             var response = await client.GetAsync(new Uri(testHost.BaseAddress, $"{QuizApiEndPoint}{quizId}"));
+
+            // TODO: Should be InternalServerError instead, since the code returns InvalidOperationException.
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
     }
@@ -77,6 +80,8 @@ public class QuizzesControllerTest
             var content = new StringContent(JsonConvert.SerializeObject(question));
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             var response = await client.PostAsync(new Uri(testHost.BaseAddress, $"{QuizApiEndPoint}"),content);
+
+            // TODO: Should be InternalServerError instead, since the code returns SqliteException.
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
     }

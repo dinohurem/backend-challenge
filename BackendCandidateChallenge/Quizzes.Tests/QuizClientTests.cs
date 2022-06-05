@@ -8,9 +8,15 @@ using System.Threading.Tasks;
 using PactNet.Mocks.MockHttpService;
 using PactNet.Mocks.MockHttpService.Models;
 using Xunit;
+using Quizzes.Domain;
+using Quizzes.Domain.Model;
+using Quizzes.Tests.Entities;
+using Quizzes.Domain.Dtos;
 
 namespace Quizzes.Tests;
 
+// TODO: Better name and organizes tests. QuizClient vs QuizzesController can be confusing.
+// TODO: Add Categories for tests (unit, integration).
 public class QuizClientTests : IClassFixture<QuizServiceApiPact>
 {
     private readonly IMockProviderService _mockProviderService;
@@ -27,6 +33,7 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
     [Fact]
     public async Task GetQuizzes_WhenSomeQuizzesExists_ReturnsTheQuizzes()
     {
+        _mockProviderService.ClearInteractions();
         _mockProviderService
             .Given("There are some quizzes")
             .UponReceiving("A GET request to retrieve the quizzes")
@@ -74,6 +81,7 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
     [Fact]
     public async Task GetQuiz_WhenAQuizWExists_ReturnsTheQuiz()
     {
+        _mockProviderService.ClearInteractions();
         _mockProviderService
             .Given("There are some quizzes")
             .UponReceiving("A GET request to retrieve the quiz")
@@ -114,8 +122,9 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
     [Fact]
     public async Task PostQuiz_Returns201CreatedAndLocationHeader()
     {
+        _mockProviderService.ClearInteractions();
         _mockProviderService
-            .Given("There are some quizzes")
+            //.Given("There are some quizzes")
             .UponReceiving("A POST quiz request")
             .With(new ProviderServiceRequest
             {
@@ -149,6 +158,7 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
     [Fact]
     public async Task PostQuestion_Returns201CreatedAndLocationHeader()
     {
+        _mockProviderService.ClearInteractions();
         _mockProviderService
             .Given("There are some quizzes")
             .UponReceiving("A POST request to quiz 123 questions collection")
@@ -184,6 +194,7 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
     [Fact]
     public async Task PutQuestion_WhenAQuestionWExists_UpdatesTheQuestion()
     {
+        _mockProviderService.ClearInteractions();
         _mockProviderService
             .Given("There are some quizzes")
             .UponReceiving("A PUT request to update a quiz question with id = 1")
@@ -214,10 +225,11 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
 
         _mockProviderService.VerifyInteractions();
     }
-		
+
     [Fact]
     public async Task PostAnswers_Returns201CreatedAndLocationHeader()
     {
+        _mockProviderService.ClearInteractions();
         _mockProviderService
             .Given("There are some quizzes")
             .UponReceiving("A POST request")
@@ -257,6 +269,7 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
     [Fact]
     public async Task GivenThatAQuizExistsPostingAnAnswerCreatesAQuizResponse()
     {
+        _mockProviderService.ClearInteractions();
         _mockProviderService
             .Given("There is a quiz with id '123'")
             .UponReceiving("A POST request creates a quiz response")
@@ -281,11 +294,140 @@ public class QuizClientTests : IClassFixture<QuizServiceApiPact>
 
         var consumer = new QuizClient(_mockProviderServiceBaseUri, Client);
 
-        var result = await consumer.PostQuizResponseAsync(new QuestionResponse(),123);
+        var result = await consumer.PostQuizResponseAsync(new QuestionResponse(), 123);
         Assert.True(string.IsNullOrEmpty(result.ErrorMessage), result.ErrorMessage);
         Assert.Equal(HttpStatusCode.Created, result.StatusCode);
         Assert.NotNull(result.Value);
 
         _mockProviderService.VerifyInteractions();
+    }
+
+    [Fact]
+    public async Task PostQuiz_TakeQuiz_VerifyCorrectAnswersScore()
+    {
+        _mockProviderService.ClearInteractions();
+        int quizId = 99999;
+
+        // Create quizz.
+        _mockProviderService
+            .Given("There are some quizzes")
+            .UponReceiving($"A POST quiz request for {quizId}")
+            .With(new ProviderServiceRequest
+            {
+                Method = HttpVerb.Post,
+                Path = "/api/quizzes",
+                Headers = new Dictionary<string, object>
+                {
+                    { "Content-Type", "application/json" }
+                }
+            })
+            .WillRespondWith(new ProviderServiceResponse
+            {
+                Status = 201,
+                Headers = new Dictionary<string, object>
+                {
+                    { "Content-Type", "application/json" },
+                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}", "quizzes\\/[0-9]*") }
+                }
+            });
+
+        var consumer = new QuizClient(_mockProviderServiceBaseUri, Client);
+
+        var result = await consumer.PostQuizAsync(new Quiz { Id = quizId, Title = $"This is quiz {quizId}" }, CancellationToken.None);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage), result.ErrorMessage);
+        Assert.Equal(HttpStatusCode.Created, result.StatusCode);
+        Assert.NotNull(result.Value);
+
+        // Create 2 questions.
+        for (int i = 1; i < 2; i++)
+        {
+            _mockProviderService
+            .Given("There are some quizzes")
+            .UponReceiving($"A POST request to quiz {quizId} questions collection")
+            .With(new ProviderServiceRequest
+            {
+                Method = HttpVerb.Post,
+                Path = $"/api/quizzes/{quizId}/questions",
+                Headers = new Dictionary<string, object>
+                {
+                    { "Content-Type", "application/json" }
+                }
+            })
+            .WillRespondWith(new ProviderServiceResponse
+            {
+                Status = 201,
+                Headers = new Dictionary<string, object>
+                {
+                    { "Content-Type", "application/json" },
+                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/1", $"quizzes\\/{quizId}\\/questions\\/[0-9]*") }
+                }
+            });
+
+            var resultQuestions = await consumer.PostQuestionAsync(quizId, new QuizQuestion { Text = $"This is a question no.{i}" }, CancellationToken.None);
+            Assert.True(string.IsNullOrEmpty(resultQuestions.ErrorMessage), resultQuestions.ErrorMessage);
+            Assert.Equal(HttpStatusCode.Created, resultQuestions.StatusCode);
+            Assert.NotNull(resultQuestions.Value);
+
+
+            // Update of correctAnswerId for each question.
+            _mockProviderService
+           .Given("There is a question with id")
+           .UponReceiving($"A PUT request to quiz {quizId} questions collection")
+           .With(new ProviderServiceRequest
+           {
+               Method = HttpVerb.Put,
+               Path = $"/api/quizzes/{quizId}/questions/{i}",
+               Headers = new Dictionary<string, object>
+               {
+                    { "Content-Type", "application/json" }
+               }
+           })
+           .WillRespondWith(new ProviderServiceResponse
+           {
+               Status = 201,
+               Headers = new Dictionary<string, object>
+               {
+                    { "Content-Type", "application/json" },
+                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/{i}", $"quizzes\\/{quizId}\\/questions\\/[0-9]*") }
+               }
+           });
+
+            var resultQuestionUpdated = await consumer.PutQuestionAsync(quizId, i, new QuestionUpdateModel { CorrectAnswerId = i == 1 ? 1 : 3 }, CancellationToken.None);
+            Assert.True(string.IsNullOrEmpty(resultQuestionUpdated.ErrorMessage), resultQuestionUpdated.ErrorMessage);
+            Assert.Equal(HttpStatusCode.Created, resultQuestionUpdated.StatusCode);
+
+            // Create 2 answers for each question.
+
+
+            _mockProviderService
+        .Given($"There is a question with id {i} and we have the first answer")
+        .UponReceiving($"A POST request for the question")
+        .With(new ProviderServiceRequest
+        {
+            Method = HttpVerb.Post,
+            Path = $"/api/quizzes/{quizId}/questions/{i}/answers",
+            Headers = new Dictionary<string, object>
+            {
+                    { "Content-Type", "application/json" }
+            }
+        })
+        .WillRespondWith(new ProviderServiceResponse
+        {
+            Status = 201,
+            Headers = new Dictionary<string, object>
+            {
+                    { "Content-Type", "application/json" },
+                    { "Location", PactNet.Matchers.Match.Regex($"/api/quizzes/{quizId}/questions/{i}/answers", $"quizzes\\/{quizId}\\/questions\\/{i}\\/answers") }
+            }
+        });
+
+            var resultAnswerFirst = await consumer.PostAnswerAsync(quizId, i, new Answer { Text = $"This is the first answer for question {i}", QuestionId = i }, CancellationToken.None);
+            Assert.True(string.IsNullOrEmpty(resultAnswerFirst.ErrorMessage), resultAnswerFirst.ErrorMessage);
+            Assert.Equal(HttpStatusCode.Created, resultAnswerFirst.StatusCode);
+            Assert.NotNull(resultAnswerFirst.Value);            
+        }
+    
+
+    _mockProviderService.VerifyInteractions();
     }
 }
